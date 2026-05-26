@@ -244,7 +244,3 @@ smart-leave-system/
 - Session-based authentication (web)
 - Token-based authentication (API via Sanctum)
 - Role-based authorization (admin / employee middleware)
-
-## License
-
-This project is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
