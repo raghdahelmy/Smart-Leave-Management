@@ -1,0 +1,411 @@
+{
+	"info": {
+		"_postman_id": "sls-api-collection-2026",
+		"name": "Smart Leave System API",
+		"description": "Complete API collection for the Smart Leave Management System.\n\n## How to use\n1. Run **Login** request first to get a token\n2. The token is saved automatically in the `token` variable\n3. All other requests use this token via the `Authorization` header\n\n## Default credentials\n- Admin: admin@admin.com / password\n- Employee: ahmed@test.com / 123456 (after creating from admin panel)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000/api",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Authentication",
+			"description": "Login and password management endpoints.",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('token', jsonData.token);",
+									"    pm.test('Login successful — token saved', function () {",
+									"        pm.expect(jsonData.token).to.be.a('string');",
+									"    });",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@admin.com\",\n    \"password\": \"password\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/login",
+							"host": ["{{base_url}}"],
+							"path": ["login"]
+						},
+						"description": "Login and receive a Bearer token.\n\nThe token is automatically saved to the `token` collection variable for use in other requests.\n\n**Default accounts:**\n- Admin: `admin@admin.com` / `password`\n- Employee: `ahmed@test.com` / `123456`"
+					},
+					"response": [
+						{
+							"name": "Success",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"message\": \"Login successful.\",\n    \"user\": {\n        \"id\": 1,\n        \"name\": \"Admin\",\n        \"email\": \"admin@admin.com\",\n        \"role\": \"admin\",\n        \"employee_id\": \"EMP-001\"\n    },\n    \"token\": \"1|abc123...\"\n}"
+						},
+						{
+							"name": "Invalid Credentials",
+							"status": "Unauthorized",
+							"code": 401,
+							"body": "{\n    \"message\": \"Invalid credentials.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"current_password\": \"123456\",\n    \"password\": \"newpass123\",\n    \"password_confirmation\": \"newpass123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/reset-password",
+							"host": ["{{base_url}}"],
+							"path": ["reset-password"]
+						},
+						"description": "Reset the authenticated user's password.\n\nRequires:\n- `current_password` — existing password\n- `password` — new password (min 6 chars)\n- `password_confirmation` — must match"
+					},
+					"response": [
+						{
+							"name": "Success",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"message\": \"Password reset successfully.\"\n}"
+						},
+						{
+							"name": "Wrong Current Password",
+							"status": "Unprocessable Entity",
+							"code": 422,
+							"body": "{\n    \"message\": \"Current password is incorrect.\"\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Leave Management",
+			"description": "Apply for leave, view history, check status and balance.",
+			"item": [
+				{
+					"name": "Apply Leave",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"leave_type_id\": 1,\n    \"start_date\": \"2026-06-15\",\n    \"end_date\": \"2026-06-17\",\n    \"reason\": \"Family event — need 3 days off\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/leave/apply",
+							"host": ["{{base_url}}"],
+							"path": ["leave", "apply"]
+						},
+						"description": "Submit a new leave request.\n\n**Leave Type IDs:**\n| ID | Code | Name |\n|----|------|------|\n| 1 | CL | Casual Leave |\n| 2 | SL | Sick Leave |\n| 3 | EL | Earned Leave |\n| 4 | ML | Maternity Leave |\n| 5 | PL | Paternity Leave |\n| 6 | AL | Annual Leave |\n| 7 | EML | Emergency Leave |\n\n**Rules:**\n- `start_date` must be today or later\n- `end_date` must be >= start_date\n- Balance is checked automatically"
+					},
+					"response": [
+						{
+							"name": "Success",
+							"status": "Created",
+							"code": 201,
+							"body": "{\n    \"message\": \"Leave request submitted.\",\n    \"data\": {\n        \"id\": 1,\n        \"user_id\": 2,\n        \"leave_type_id\": 1,\n        \"start_date\": \"2026-06-15\",\n        \"end_date\": \"2026-06-17\",\n        \"total_days\": 3,\n        \"reason\": \"Family event\",\n        \"status\": \"pending\"\n    }\n}"
+						},
+						{
+							"name": "Insufficient Balance",
+							"status": "Unprocessable Entity",
+							"code": 422,
+							"body": "{\n    \"message\": \"Insufficient leave balance. Remaining: 2 days.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Leave History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/leave/history",
+							"host": ["{{base_url}}"],
+							"path": ["leave", "history"]
+						},
+						"description": "Get paginated leave history for the authenticated user.\n\nReturns 15 records per page. Append `?page=2` for next page."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"current_page\": 1,\n    \"data\": [\n        {\n            \"id\": 1,\n            \"leave_type\": { \"name\": \"Casual Leave\", \"code\": \"CL\" },\n            \"start_date\": \"2026-06-15\",\n            \"end_date\": \"2026-06-17\",\n            \"total_days\": 3,\n            \"status\": \"pending\"\n        }\n    ],\n    \"per_page\": 15,\n    \"total\": 1\n}"
+						}
+					]
+				},
+				{
+					"name": "Leave History — Page 2",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/leave/history?page=2",
+							"host": ["{{base_url}}"],
+							"path": ["leave", "history"],
+							"query": [
+								{
+									"key": "page",
+									"value": "2"
+								}
+							]
+						},
+						"description": "Get page 2 of leave history."
+					}
+				},
+				{
+					"name": "Leave Status (by ID)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/leave/1",
+							"host": ["{{base_url}}"],
+							"path": ["leave", "1"]
+						},
+						"description": "Get details of a specific leave request by ID.\n\nChange `1` in the URL to the actual leave request ID."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"id\": 1,\n    \"leave_type\": { \"name\": \"Casual Leave\", \"code\": \"CL\" },\n    \"start_date\": \"2026-06-15\",\n    \"end_date\": \"2026-06-17\",\n    \"total_days\": 3,\n    \"status\": \"approved\",\n    \"admin_note\": \"Approved. Enjoy your time.\",\n    \"reviewer\": { \"name\": \"Admin\" }\n}"
+						},
+						{
+							"name": "Not Found",
+							"status": "Not Found",
+							"code": 404,
+							"body": "{\n    \"message\": \"No query results for model [App\\\\Models\\\\LeaveRequest] 999.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Leave Balance",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/leave/balance",
+							"host": ["{{base_url}}"],
+							"path": ["leave", "balance"]
+						},
+						"description": "Get leave balances for the current year.\n\nReturns all leave types with total, used, and remaining days."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"status": "OK",
+							"code": 200,
+							"body": "[\n    {\n        \"id\": 1,\n        \"leave_type\": { \"name\": \"Casual Leave\", \"code\": \"CL\" },\n        \"total_days\": 10,\n        \"used_days\": 3,\n        \"remaining_days\": 7,\n        \"year\": 2026\n    },\n    {\n        \"id\": 2,\n        \"leave_type\": { \"name\": \"Sick Leave\", \"code\": \"SL\" },\n        \"total_days\": 21,\n        \"used_days\": 0,\n        \"remaining_days\": 21,\n        \"year\": 2026\n    }\n]"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Complaints",
+			"description": "Submit complaints and check their status.",
+			"item": [
+				{
+					"name": "Create Complaint",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"subject\": \"Late leave approval\",\n    \"description\": \"My leave request has been pending for over a week with no response. Please look into this matter.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/complaint",
+							"host": ["{{base_url}}"],
+							"path": ["complaint"]
+						},
+						"description": "Submit a new complaint.\n\n- `subject` — max 255 characters\n- `description` — max 2000 characters"
+					},
+					"response": [
+						{
+							"name": "Success",
+							"status": "Created",
+							"code": 201,
+							"body": "{\n    \"message\": \"Complaint submitted.\",\n    \"data\": {\n        \"id\": 1,\n        \"user_id\": 2,\n        \"subject\": \"Late leave approval\",\n        \"description\": \"My leave request has been pending...\",\n        \"status\": \"open\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "Complaint Status (by ID)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/complaint/1",
+							"host": ["{{base_url}}"],
+							"path": ["complaint", "1"]
+						},
+						"description": "Get details of a specific complaint by ID.\n\nChange `1` in the URL to the actual complaint ID.\n\n**Possible statuses:** `open`, `in_progress`, `resolved`"
+					},
+					"response": [
+						{
+							"name": "Success",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"id\": 1,\n    \"user_id\": 2,\n    \"subject\": \"Late leave approval\",\n    \"description\": \"My leave request has been pending...\",\n    \"status\": \"in_progress\",\n    \"admin_reply\": \"We are looking into this. Sorry for the delay.\"\n}"
+						}
+					]
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [""]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"pm.test('Response time < 2s', function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(2000);",
+					"});",
+					"",
+					"pm.test('Status is not 500', function () {",
+					"    pm.expect(pm.response.code).to.not.equal(500);",
+					"});"
+				]
+			}
+		}
+	]
+}
